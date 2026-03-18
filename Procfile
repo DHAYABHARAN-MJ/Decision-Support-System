@@ -1,1 +1,1 @@
-web: gunicorn hill_construction_dss.wsgi
+web: gunicorn hill_dss.wsgi
