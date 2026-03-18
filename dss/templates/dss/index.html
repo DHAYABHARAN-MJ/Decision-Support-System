@@ -1,0 +1,954 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hill Construction DSS — Feasibility Assessment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0e0e0e;--ink2:#3a3a3a;--ink3:#6e6e6e;
+  --paper:#f4f1ec;--paper2:#eae7e0;--paper3:#dedad2;
+  --accent:#c84b2f;--accent2:#e8793a;
+  --ok:#1a6b4a;--ok-bg:#d4ede3;--ok-txt:#0d4a30;
+  --warn:#8a5a00;--warn-bg:#fdefc7;--warn-txt:#5c3c00;
+  --danger:#8b1a1a;--danger-bg:#fce4e4;--danger-txt:#5c0000;
+  --border:rgba(14,14,14,0.1);
+  --fd:'Syne',sans-serif;--fb:'DM Sans',sans-serif;--fm:'DM Mono',monospace;
+  --r:6px;--rl:12px;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--fb);background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:hidden}
+
+/* noise */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.6}
+
+/* HEADER */
+header{background:var(--ink);color:var(--paper);padding:0 clamp(20px,4vw,56px);position:relative;overflow:hidden}
+.hgeo{position:absolute;right:-80px;top:-80px;width:480px;height:480px;border:1px solid rgba(244,241,236,.06);border-radius:50%;pointer-events:none}
+.hgeo::before,.hgeo::after{content:'';position:absolute;border-radius:50%;border:1px solid rgba(244,241,236,.05)}
+.hgeo::before{inset:60px}.hgeo::after{inset:120px}
+.header-inner{max-width:1280px;margin:0 auto;padding:44px 0 40px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;position:relative;z-index:1}
+.logo{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.logo-icon{width:46px;height:46px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:24px;height:24px;fill:white}
+.logo-text{font-family:var(--fd);font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:rgba(244,241,236,.55)}
+h1{font-family:var(--fd);font-size:clamp(30px,4.5vw,54px);font-weight:800;line-height:1.04;letter-spacing:-.025em;color:var(--paper);max-width:560px}
+h1 em{font-style:normal;color:var(--accent2)}
+.hright{text-align:right;flex-shrink:0}
+.hbadge{display:inline-block;padding:5px 14px;background:rgba(244,241,236,.07);border:1px solid rgba(244,241,236,.14);border-radius:100px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:rgba(244,241,236,.55);margin-bottom:12px}
+.hright p{font-size:12px;color:rgba(244,241,236,.38);line-height:1.7;max-width:200px;margin-left:auto}
+
+/* PROGRESS */
+.pbar{background:var(--ink);border-top:1px solid rgba(244,241,236,.07);padding:0 clamp(20px,4vw,56px)}
+.pbar-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;padding:15px 0}
+.step{display:flex;align-items:center;gap:8px;cursor:pointer;transition:opacity .2s;flex:1}
+.step:hover{opacity:.75}
+.snum{width:26px;height:26px;border-radius:50%;border:1.5px solid rgba(244,241,236,.2);display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:11px;color:rgba(244,241,236,.35);flex-shrink:0;transition:all .3s}
+.step.active .snum{background:var(--accent);border-color:var(--accent);color:#fff}
+.step.done .snum{background:rgba(26,107,74,.3);border-color:var(--ok);color:#4cc98a}
+.slbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:rgba(244,241,236,.28);transition:color .3s}
+.step.active .slbl{color:rgba(244,241,236,.85)}
+.step.done .slbl{color:rgba(244,241,236,.45)}
+.sconn{flex:1;height:1px;background:rgba(244,241,236,.09);margin:0 10px}
+@media(max-width:600px){.slbl{display:none}.sconn{margin:0 4px}}
+
+/* MAIN */
+main{max-width:1280px;margin:0 auto;padding:52px clamp(20px,4vw,56px) 100px;position:relative;z-index:1}
+
+/* API status */
+.apibar{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:10px 16px;display:flex;align-items:center;gap:10px;font-family:var(--fm);font-size:12px;color:var(--ink3);margin-bottom:36px}
+.apidot{width:7px;height:7px;border-radius:50%;background:var(--ok);animation:pulse 2s ease-in-out infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.apiurl{color:var(--ink2)}
+
+/* SECTIONS */
+.section{margin-bottom:36px;animation:fadeUp .4s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.sec-hdr{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.sec-ico{width:38px;height:38px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.sec-title{font-family:var(--fd);font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.sec-sub{font-size:12px;color:var(--ink3);margin-top:2px}
+.sec-num{margin-left:auto;font-family:var(--fm);font-size:11px;color:var(--ink3);background:var(--paper2);padding:3px 9px;border-radius:100px}
+
+.grid{display:grid;gap:14px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:960px){.g3{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.g3,.g2{grid-template-columns:1fr}}
+
+/* INPUT CARDS */
+.icard{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:20px;transition:border-color .2s,box-shadow .2s;position:relative}
+.icard:focus-within{border-color:rgba(200,75,47,.4);box-shadow:0 0 0 3px rgba(200,75,47,.07)}
+.icard.s-ok{border-left:3px solid var(--ok)}
+.icard.s-warn{border-left:3px solid #d4900a}
+.icard.s-danger{border-left:3px solid var(--accent)}
+.ilbl{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.isrc{font-size:9px;font-family:var(--fm);color:var(--ink3);background:var(--paper2);padding:2px 7px;border-radius:4px}
+.ihint{font-size:11px;color:var(--ink3);margin-top:7px;line-height:1.45}
+
+input[type=number],select{width:100%;font-family:var(--fb);font-size:15px;color:var(--ink);background:var(--paper);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;outline:none;transition:border-color .15s,background .15s;-webkit-appearance:none;appearance:none}
+input[type=number]:focus,select:focus{border-color:var(--accent);background:#fff}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236e6e6e' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px;cursor:pointer}
+
+/* slider */
+.sw{display:flex;align-items:center;gap:12px}
+input[type=range]{flex:1;-webkit-appearance:none;height:4px;background:var(--paper3);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--ink);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.18);transition:background .15s,transform .1s}
+input[type=range]::-webkit-slider-thumb:hover{background:var(--accent);transform:scale(1.15)}
+.sval{font-family:var(--fm);font-size:14px;font-weight:500;min-width:44px;text-align:right}
+
+/* seg control */
+.seg{display:flex;gap:3px;background:var(--paper);border:1px solid var(--border);border-radius:var(--r);padding:3px}
+.sbtn{flex:1;padding:8px 4px;font-family:var(--fb);font-size:13px;font-weight:500;color:var(--ink3);background:transparent;border:none;border-radius:calc(var(--r) - 2px);cursor:pointer;transition:all .15s;text-align:center}
+.sbtn:hover{color:var(--ink);background:var(--paper2)}
+.sbtn.on{background:var(--ink);color:var(--paper)}
+.sbtn.on.ok{background:var(--ok)}
+.sbtn.on.warn{background:#b07800}
+.sbtn.on.danger{background:var(--accent)}
+
+/* status pill */
+.spill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:100px;margin-top:8px;opacity:0;transform:translateY(4px);transition:all .25s}
+.spill.vis{opacity:1;transform:none}
+.spill.ok{background:var(--ok-bg);color:var(--ok-txt)}
+.spill.warn{background:var(--warn-bg);color:var(--warn-txt)}
+.spill.danger{background:var(--danger-bg);color:var(--danger-txt)}
+.spill::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+
+/* divider */
+.divid{display:flex;align-items:center;gap:16px;margin:40px 0 28px}
+.divid-line{flex:1;height:1px;background:var(--border)}
+.divid-lbl{font-family:var(--fm);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3)}
+
+/* SUBMIT */
+.sub-row{display:flex;align-items:center;gap:16px;margin-top:40px;flex-wrap:wrap}
+.btn-run{position:relative;padding:15px 40px;font-family:var(--fd);font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:var(--ink);border:none;border-radius:var(--r);cursor:pointer;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.btn-run::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--accent),var(--accent2));opacity:0;transition:opacity .3s}
+.btn-run:hover::before{opacity:1}
+.btn-run:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(200,75,47,.3)}
+.btn-run:active{transform:none}
+.btn-run span{position:relative;z-index:1}
+.btn-rst{padding:15px 22px;font-family:var(--fb);font-size:14px;color:var(--ink3);background:transparent;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all .15s}
+.btn-rst:hover{background:var(--paper2);color:var(--ink)}
+.icnt{font-family:var(--fm);font-size:12px;color:var(--ink3);margin-left:auto}
+.icnt strong{color:var(--ink)}
+.loading{display:none;align-items:center;gap:10px;font-size:13px;color:var(--ink3)}
+.loading.vis{display:flex}
+.spin{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* RESULT */
+#rp{display:none;margin-top:52px;animation:fadeUp .5s ease both}
+#rp.vis{display:block}
+
+.res-hero{display:grid;grid-template-columns:290px 1fr;gap:28px;margin-bottom:28px;align-items:start}
+@media(max-width:720px){.res-hero{grid-template-columns:1fr}}
+
+.sdial{background:var(--ink);border-radius:var(--rl);padding:36px 28px;text-align:center;position:relative;overflow:hidden}
+.sdial::after{content:'';position:absolute;bottom:-50px;right:-50px;width:160px;height:160px;border:1px solid rgba(244,241,236,.06);border-radius:50%;pointer-events:none}
+.sdial-lbl{font-family:var(--fm);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(244,241,236,.38);margin-bottom:14px}
+.snum-big{font-family:var(--fd);font-size:78px;font-weight:800;line-height:1;color:#fff;letter-spacing:-.04em}
+.snum-big span{font-size:30px;color:rgba(244,241,236,.35);font-weight:400}
+.sbar-o{height:6px;background:rgba(244,241,236,.1);border-radius:3px;margin:16px 0;overflow:hidden}
+.sbar-i{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.23,1,.32,1);width:0}
+.sverd{font-family:var(--fd);font-size:15px;font-weight:700;margin-top:12px;color:#fff}
+.sact{font-size:12px;color:rgba(244,241,236,.45);margin-top:6px;line-height:1.5}
+
+.vcard{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:28px}
+.vlbl{font-family:var(--fm);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:8px}
+.vtitle{font-family:var(--fd);font-size:24px;font-weight:800;line-height:1.1;margin-bottom:12px}
+.vdesc{font-size:14px;color:var(--ink2);line-height:1.65;margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.bdr{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0}
+.bdl{color:var(--ink3)}
+.bdv{font-family:var(--fm);font-weight:500}
+.bdv.pos{color:var(--ok)}.bdv.neg{color:var(--danger)}.bdv.base{color:var(--ink)}
+
+/* rtype colors */
+.c-green{color:var(--ok)}.c-amber{color:#b07800}.c-orange{color:#c06800}.c-red{color:var(--danger)}
+.b-green{background:var(--ok)}.b-amber{background:#c8900a}.b-orange{background:#b06000}.b-red{background:var(--accent)}
+
+/* result section title */
+.rst{font-family:var(--fd);font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);margin:32px 0 16px;display:flex;align-items:center;gap:10px}
+.rst::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* results grid */
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:960px){.rgrid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.rgrid{grid-template-columns:1fr}}
+
+.ritem{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:16px;border-left:3px solid transparent;transition:transform .2s}
+.ritem:hover{transform:translateY(-2px)}
+.ritem.ok{border-left-color:var(--ok)}.ritem.warn{border-left-color:#d4900a}.ritem.danger{border-left-color:var(--accent)}
+.rip{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);margin-bottom:5px}
+.ril{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:4px;line-height:1.3}
+.ris{font-family:var(--fm);font-size:12px;font-weight:500}
+.ris.pos{color:var(--ok)}.ris.neg{color:var(--danger)}.ris.z{color:var(--ink3)}
+.ria{font-size:11px;color:var(--ink3);margin-top:4px;line-height:1.4}
+
+/* compound */
+.clist{display:flex;flex-direction:column;gap:10px}
+.citem{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;gap:14px}
+.cico{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.cico.danger{background:var(--danger-bg)}.cico.warn{background:var(--warn-bg)}.cico.ok{background:var(--ok-bg)}
+.crule{font-size:13px;font-weight:500;color:var(--ink)}
+.creason{font-size:12px;color:var(--ink3);margin-top:2px}
+.cscore{margin-left:auto;font-family:var(--fm);font-size:13px;font-weight:500;flex-shrink:0}
+.cscore.pos{color:var(--ok)}.cscore.neg{color:var(--danger)}
+
+/* recommendations */
+.rlist{display:flex;flex-direction:column;gap:8px}
+.ritem2{display:flex;align-items:flex-start;gap:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.rnum{width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--paper);font-family:var(--fm);font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.rtxt{font-size:13px;color:var(--ink2);line-height:1.5}
+.rsrc{font-family:var(--fm);font-size:10px;color:var(--ink3);margin-top:3px}
+
+/* disclaimer */
+.disc{margin-top:32px;padding:16px 20px;background:var(--paper2);border-radius:var(--r);border:1px solid var(--border);font-size:12px;color:var(--ink3);line-height:1.65;display:flex;gap:12px;align-items:flex-start}
+.disc-ico{font-size:15px;flex-shrink:0;margin-top:1px}
+
+/* toast */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:var(--paper);padding:11px 22px;border-radius:var(--rl);font-size:13px;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* sec icon backgrounds */
+.ico-t{background:#e8f0fe}.ico-s{background:#fce8d5}.ico-st{background:#f0e8fe}.ico-m{background:#e4f5e8}.ico-sa{background:#fce4e4}.ico-f{background:#e8f0f5}
+
+/* summary card */
+.sum-card{background:var(--ink);border:1px solid var(--ink);border-radius:var(--rl);padding:24px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hgeo"></div>
+  <div class="header-inner">
+    <div>
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 19h20L12 2zm0 4.2l7.2 12.8H4.8L12 6.2z"/></svg>
+        </div>
+        <span class="logo-text">Hill Construction DSS</span>
+      </div>
+      <h1>Site <em>Feasibility</em><br>Assessment System</h1>
+    </div>
+    <div class="hright">
+      <div class="hbadge">IS Code Compliant</div>
+      <p>NBC 2016 · IS 1893 · IS 6403 · IS 14458 · NDMA guidelines</p>
+    </div>
+  </div>
+</header>
+
+<div class="pbar">
+  <div class="pbar-inner">
+    <div class="step active" id="st1" onclick="goTo('terrain')"><div class="snum">1</div><span class="slbl">Terrain</span></div>
+    <div class="sconn"></div>
+    <div class="step" id="st2" onclick="goTo('soil')"><div class="snum">2</div><span class="slbl">Soil</span></div>
+    <div class="sconn"></div>
+    <div class="step" id="st3" onclick="goTo('structural')"><div class="snum">3</div><span class="slbl">Structural</span></div>
+    <div class="sconn"></div>
+    <div class="step" id="st4" onclick="goTo('material')"><div class="snum">4</div><span class="slbl">Material</span></div>
+    <div class="sconn"></div>
+    <div class="step" id="st5" onclick="goTo('safety')"><div class="snum">5</div><span class="slbl">Safety</span></div>
+    <div class="sconn"></div>
+    <div class="step" id="st6" onclick="goTo('functional')"><div class="snum">6</div><span class="slbl">Functional</span></div>
+  </div>
+</div>
+
+<main>
+  <div class="apibar">
+    <div class="apidot"></div>
+    <span>API:</span>
+    <span class="apiurl">POST /api/dss/assess/</span>
+    <span style="margin-left:auto;color:var(--ink3);font-size:11px">15 parameters · IS Code verified · Real-time scoring</span>
+  </div>
+
+  <!-- ── TERRAIN ────────────────────────────── -->
+  <div class="section" id="terrain">
+    <div class="sec-hdr">
+      <div class="sec-ico ico-t">⛰️</div>
+      <div><div class="sec-title">Terrain Parameters</div><div class="sec-sub">Physical site characteristics and geographic hazards</div></div>
+      <div class="sec-num">1 / 6</div>
+    </div>
+    <div class="grid g3">
+      <div class="icard" id="ic-slope">
+        <div class="ilbl">Slope Angle <span class="isrc">IS 14458</span></div>
+        <div class="sw">
+          <input type="range" id="slope_angle" min="0" max="90" step="1" value="0" oninput="onSlider(this,'sv-slope','°')">
+          <span class="sval" id="sv-slope">0°</span>
+        </div>
+        <div class="ihint">Safe limit: ≤15° without earthworks (NBC 2016)</div>
+        <div class="spill" id="pill-slope"></div>
+      </div>
+      <div class="icard" id="ic-elev">
+        <div class="ilbl">Elevation Level <span class="isrc">IS 875</span></div>
+        <div class="seg">
+          <button class="sbtn on ok" onclick="onSeg(this,'elevation','low')">Low</button>
+          <button class="sbtn warn" onclick="onSeg(this,'elevation','medium')">Medium</button>
+          <button class="sbtn warn" onclick="onSeg(this,'elevation','high')">High</button>
+        </div>
+        <input type="hidden" id="elevation" value="low">
+        <div class="ihint">High altitude adds wind load and access constraints</div>
+        <div class="spill" id="pill-elev"></div>
+      </div>
+      <div class="icard" id="ic-land">
+        <div class="ilbl">Landslide Risk Zone <span class="isrc">NDMA</span></div>
+        <div class="seg">
+          <button class="sbtn on ok" onclick="onSeg(this,'landslide_risk','low')">Low</button>
+          <button class="sbtn warn" onclick="onSeg(this,'landslide_risk','medium')">Medium</button>
+          <button class="sbtn danger" onclick="onSeg(this,'landslide_risk','high')">High</button>
+        </div>
+        <input type="hidden" id="landslide_risk" value="low">
+        <div class="ihint">From GSI Landslide Atlas or NDMA hazard maps</div>
+        <div class="spill" id="pill-land"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divid"><div class="divid-line"></div><div class="divid-lbl">Soil</div><div class="divid-line"></div></div>
+
+  <!-- ── SOIL ──────────────────────────────── -->
+  <div class="section" id="soil">
+    <div class="sec-hdr">
+      <div class="sec-ico ico-s">🪨</div>
+      <div><div class="sec-title">Soil Parameters</div><div class="sec-sub">Foundation stability and load-bearing characteristics</div></div>
+      <div class="sec-num">2 / 6</div>
+    </div>
+    <div class="grid g3">
+      <div class="icard" id="ic-soil">
+        <div class="ilbl">Soil Type <span class="isrc">IS 1498</span></div>
+        <div class="seg">
+          <button class="sbtn ok" onclick="onSeg(this,'soil_type','rock')">Rock</button>
+          <button class="sbtn on warn" onclick="onSeg(this,'soil_type','clay')">Clay</button>
+          <button class="sbtn danger" onclick="onSeg(this,'soil_type','sandy')">Sandy</button>
+        </div>
+        <input type="hidden" id="soil_type" value="clay">
+        <div class="ihint">Rock = best. Sandy = liquefaction risk (IS 1893)</div>
+        <div class="spill" id="pill-soil"></div>
+      </div>
+      <div class="icard" id="ic-bear">
+        <div class="ilbl">Bearing Capacity <span class="isrc">IS 6403</span></div>
+        <div class="sw">
+          <input type="range" id="bearing_capacity" min="0" max="500" step="5" value="150" oninput="onSlider(this,'sv-bear',' kN/m²')">
+          <span class="sval" id="sv-bear">150 kN/m²</span>
+        </div>
+        <div class="ihint">From SPT/plate load test. Safe: ≥100 kN/m²</div>
+        <div class="spill" id="pill-bear"></div>
+      </div>
+      <div class="icard" id="ic-moist">
+        <div class="ilbl">Soil Moisture <span class="isrc">IS 8009</span></div>
+        <div class="seg">
+          <button class="sbtn on ok" onclick="onSeg(this,'moisture_content','low')">Low</button>
+          <button class="sbtn warn" onclick="onSeg(this,'moisture_content','medium')">Medium</button>
+          <button class="sbtn danger" onclick="onSeg(this,'moisture_content','high')">High</button>
+        </div>
+        <input type="hidden" id="moisture_content" value="low">
+        <div class="ihint">High moisture increases settlement + instability</div>
+        <div class="spill" id="pill-moist"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divid"><div class="divid-line"></div><div class="divid-lbl">Structural</div><div class="divid-line"></div></div>
+
+  <!-- ── STRUCTURAL ────────────────────────── -->
+  <div class="section" id="structural">
+    <div class="sec-hdr">
+      <div class="sec-ico ico-st">🏗️</div>
+      <div><div class="sec-title">Structural Parameters</div><div class="sec-sub">Building height, load classification, and foundation design</div></div>
+      <div class="sec-num">3 / 6</div>
+    </div>
+    <div class="grid g3">
+      <div class="icard" id="ic-floors">
+        <div class="ilbl">Number of Floors <span class="isrc">NBC 2016</span></div>
+        <div class="sw">
+          <input type="range" id="num_floors" min="1" max="20" step="1" value="2" oninput="onSlider(this,'sv-floors','')">
+          <span class="sval" id="sv-floors">2</span>
+        </div>
+        <div class="ihint">Above 5 floors requires pile foundation (IS 2911)</div>
+        <div class="spill" id="pill-floors"></div>
+      </div>
+      <div class="icard" id="ic-found">
+        <div class="ilbl">Foundation Type <span class="isrc">IS 2911</span></div>
+        <select id="foundation_type" onchange="onDrop(this)">
+          <option value="pile">Pile Foundation</option>
+          <option value="raft">Raft Foundation</option>
+          <option value="stepped">Stepped Foundation</option>
+          <option value="shallow">Shallow Foundation</option>
+        </select>
+        <div class="ihint">Pile: best for slopes. Shallow: flat + strong soil only</div>
+        <div class="spill" id="pill-found"></div>
+      </div>
+      <div class="icard" id="ic-load">
+        <div class="ilbl">Building Load <span class="isrc">NBC 2016</span></div>
+        <div class="seg">
+          <button class="sbtn on ok" onclick="onSeg(this,'building_load','light')">Light</button>
+          <button class="sbtn ok" onclick="onSeg(this,'building_load','medium')">Medium</button>
+          <button class="sbtn danger" onclick="onSeg(this,'building_load','heavy')">Heavy</button>
+        </div>
+        <input type="hidden" id="building_load" value="light">
+        <div class="ihint">Heavy load requires strong foundation + soil check</div>
+        <div class="spill" id="pill-load"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divid"><div class="divid-line"></div><div class="divid-lbl">Material</div><div class="divid-line"></div></div>
+
+  <!-- ── MATERIAL ──────────────────────────── -->
+  <div class="section" id="material">
+    <div class="sec-hdr">
+      <div class="sec-ico ico-m">🧱</div>
+      <div><div class="sec-title">Material Parameters</div><div class="sec-sub">Construction materials and wall system selection</div></div>
+      <div class="sec-num">4 / 6</div>
+    </div>
+    <div class="grid g2">
+      <div class="icard" id="ic-mat">
+        <div class="ilbl">Construction Material <span class="isrc">IS 456</span></div>
+        <div class="seg">
+          <button class="sbtn on ok" onclick="onSeg(this,'material','concrete')">Concrete</button>
+          <button class="sbtn ok" onclick="onSeg(this,'material','steel')">Steel</button>
+          <button class="sbtn warn" onclick="onSeg(this,'material','wood')">Wood</button>
+        </div>
+        <input type="hidden" id="material" value="concrete">
+        <div class="ihint">Concrete + Steel best for all seismic zones (IS 800)</div>
+        <div class="spill" id="pill-mat"></div>
+      </div>
+      <div class="icard" id="ic-wall">
+        <div class="ilbl">Wall Type <span class="isrc">IS 13920</span></div>
+        <div class="seg">
+          <button class="sbtn on ok" onclick="onSeg(this,'wall_type','reinforced')">Reinforced</button>
+          <button class="sbtn ok" onclick="onSeg(this,'wall_type','brick')">Brick</button>
+          <button class="sbtn warn" onclick="onSeg(this,'wall_type','lightweight')">Lightweight</button>
+        </div>
+        <input type="hidden" id="wall_type" value="reinforced">
+        <div class="ihint">Reinforced: mandatory in seismic zone 3+ (IS 13920)</div>
+        <div class="spill" id="pill-wall"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divid"><div class="divid-line"></div><div class="divid-lbl">Safety</div><div class="divid-line"></div></div>
+
+  <!-- ── SAFETY ────────────────────────────── -->
+  <div class="section" id="safety">
+    <div class="sec-hdr">
+      <div class="sec-ico ico-sa">🛡️</div>
+      <div><div class="sec-title">Safety Parameters</div><div class="sec-sub">Slope protection, drainage system, and seismic design zone</div></div>
+      <div class="sec-num">5 / 6</div>
+    </div>
+    <div class="grid g3">
+      <div class="icard" id="ic-ret">
+        <div class="ilbl">Retaining Wall <span class="isrc">IS 14458</span></div>
+        <div class="seg">
+          <button class="sbtn on ok" onclick="onSeg(this,'retaining_wall','yes')">Present</button>
+          <button class="sbtn danger" onclick="onSeg(this,'retaining_wall','no')">Not Present</button>
+        </div>
+        <input type="hidden" id="retaining_wall" value="yes">
+        <div class="ihint">Required when slope &gt; 15° (IS 14458)</div>
+        <div class="spill" id="pill-ret"></div>
+      </div>
+      <div class="icard" id="ic-drain">
+        <div class="ilbl">Drainage System <span class="isrc">IS 4111</span></div>
+        <div class="seg">
+          <button class="sbtn on ok" onclick="onSeg(this,'drainage','yes')">Available</button>
+          <button class="sbtn danger" onclick="onSeg(this,'drainage','no')">Not Available</button>
+        </div>
+        <input type="hidden" id="drainage" value="yes">
+        <div class="ihint">Sub-surface + perimeter drainage essential</div>
+        <div class="spill" id="pill-drain"></div>
+      </div>
+      <div class="icard" id="ic-seis">
+        <div class="ilbl">Seismic Zone <span class="isrc">IS 1893</span></div>
+        <select id="seismic_zone" onchange="onDrop(this)">
+          <option value="1">Zone 1 — Very Low Risk</option>
+          <option value="2">Zone 2 — Low Risk</option>
+          <option value="3">Zone 3 — Moderate Risk</option>
+          <option value="4">Zone 4 — High Risk</option>
+          <option value="5">Zone 5 — Very High Risk</option>
+        </select>
+        <div class="ihint">Verify from IS 1893 Part 1 seismic zone map</div>
+        <div class="spill" id="pill-seis"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divid"><div class="divid-line"></div><div class="divid-lbl">Functional</div><div class="divid-line"></div></div>
+
+  <!-- ── FUNCTIONAL ────────────────────────── -->
+  <div class="section" id="functional">
+    <div class="sec-hdr">
+      <div class="sec-ico ico-f">🏡</div>
+      <div><div class="sec-title">Functional Parameter</div><div class="sec-sub">Intended building usage and occupancy classification</div></div>
+      <div class="sec-num">6 / 6</div>
+    </div>
+    <div class="grid g2">
+      <div class="icard" id="ic-usage">
+        <div class="ilbl">Building Usage <span class="isrc">NBC 2016</span></div>
+        <div class="seg">
+          <button class="sbtn on ok" onclick="onSeg(this,'usage','residential')">Residential</button>
+          <button class="sbtn warn" onclick="onSeg(this,'usage','commercial')">Commercial</button>
+        </div>
+        <input type="hidden" id="usage" value="residential">
+        <div class="ihint">Commercial needs extra safety checks in hazard zones</div>
+        <div class="spill" id="pill-usage"></div>
+      </div>
+      <div class="sum-card">
+        <div style="color:rgba(244,241,236,.45);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;font-family:var(--fm)">Input Summary</div>
+        <div id="sum-n" style="font-family:var(--fd);font-size:26px;font-weight:800;color:#fff">15 / 15</div>
+        <div style="color:rgba(244,241,236,.4);font-size:12px;margin-top:2px">parameters ready</div>
+        <div style="margin-top:16px;height:4px;background:rgba(244,241,236,.1);border-radius:2px;overflow:hidden">
+          <div id="sum-bar" style="height:100%;width:100%;background:var(--accent2);border-radius:2px;transition:width .4s ease"></div>
+        </div>
+        <div style="margin-top:14px;font-size:12px;color:rgba(244,241,236,.35);line-height:1.6">All parameters initialized.<br>Adjust values above then run assessment.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SUBMIT ─────────────────────────────── -->
+  <div class="sub-row">
+    <button class="btn-run" id="runBtn" onclick="runAssessment()"><span>Run Feasibility Assessment →</span></button>
+    <button class="btn-rst" onclick="resetAll()">Reset</button>
+    <div class="loading" id="loading"><div class="spin"></div>Processing 15 parameters…</div>
+    <div class="icnt" id="icnt"><strong>15</strong> / 15 ready</div>
+  </div>
+
+  <!-- ── RESULT PANEL ───────────────────────── -->
+  <div id="rp">
+
+    <div class="divid" style="margin-top:52px">
+      <div class="divid-line"></div><div class="divid-lbl">Assessment Result</div><div class="divid-line"></div>
+    </div>
+
+    <div class="res-hero">
+      <div class="sdial">
+        <div class="sdial-lbl">Feasibility Score</div>
+        <div class="snum-big" id="r-score">0<span>/100</span></div>
+        <div class="sbar-o"><div class="sbar-i" id="r-bar"></div></div>
+        <div class="sverd" id="r-verd">—</div>
+        <div class="sact" id="r-act">—</div>
+      </div>
+      <div class="vcard">
+        <div class="vlbl">Decision Support Output</div>
+        <div class="vtitle" id="r-vtitle">—</div>
+        <div class="vdesc" id="r-vdesc">—</div>
+        <div class="bdr"><span class="bdl">Base score</span><span class="bdv base">100</span></div>
+        <div class="bdr"><span class="bdl">Individual parameters</span><span class="bdv" id="r-ind">—</span></div>
+        <div class="bdr"><span class="bdl">Compound interactions</span><span class="bdv" id="r-comp">—</span></div>
+        <div class="bdr" style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px">
+          <span class="bdl" style="font-weight:500;color:var(--ink)">Final score</span>
+          <span class="bdv base" id="r-final" style="font-size:16px">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="rst">Parameter Results</div>
+    <div class="rgrid" id="r-grid"></div>
+
+    <div id="r-csec" style="display:none">
+      <div class="rst">Compound Interactions Triggered</div>
+      <div class="clist" id="r-clist"></div>
+    </div>
+
+    <div id="r-rsec" style="display:none">
+      <div class="rst">Engineering Recommendations</div>
+      <div class="rlist" id="r-rlist"></div>
+    </div>
+
+    <div class="disc">
+      <span class="disc-ico">⚠️</span>
+      <span id="r-disc"></span>
+    </div>
+
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE (mirrors Python defaults) ─────────────────────────
+const S = {
+  slope_angle:0, elevation:'low', landslide_risk:'low',
+  soil_type:'clay', bearing_capacity:150, moisture_content:'low',
+  num_floors:2, foundation_type:'pile', building_load:'light',
+  material:'concrete', wall_type:'reinforced', retaining_wall:'yes',
+  drainage:'yes', seismic_zone:1, usage:'residential'
+};
+
+// ── SCORING ENGINE (mirrors engine.py exactly) ───────────────
+const E = {
+  slope(v){
+    if(v<=15) return{score:0,label:'Suitable',status:'ok',action:'No action needed.'};
+    if(v<=30) return{score:-8,label:'Caution',status:'warn',action:'Slope stability analysis required.'};
+    if(v<=45) return{score:-20,label:'Steep — earthworks needed',status:'warn',action:'Retaining wall + cut/fill compulsory.'};
+    return{score:-30,label:'Not suitable',status:'danger',action:'Construction not recommended.'};
+  },
+  elevation(v){
+    if(v==='low')    return{score:0,  label:'Suitable',           status:'ok',  action:'Standard design applies.'};
+    if(v==='medium') return{score:-5, label:'Minor constraints',  status:'warn',action:'Wind load check required.'};
+    return{score:-10,label:'Risk — extra design',status:'warn',action:'Enhanced wind load + access constraints.'};
+  },
+  landslide(v){
+    if(v==='low')    return{score:0,  label:'Suitable',    status:'ok',    action:'Standard construction allowed.'};
+    if(v==='medium') return{score:-10,label:'Caution',     status:'warn',  action:'Retaining wall + drainage mandatory.'};
+    return{score:-25,label:'Not suitable',status:'danger',action:'Geotechnical survey + anchoring needed.'};
+  },
+  soilType(v){
+    if(v==='rock')  return{score:+5, label:'Excellent — stable base', status:'ok',    action:'Best foundation base.'};
+    if(v==='clay')  return{score:-5, label:'Moderate — swell/shrink', status:'warn',  action:'Moisture monitoring needed.'};
+    return{score:-10,label:'Weak — liquefaction risk',status:'danger',action:'Pile/raft compulsory; compaction needed.'};
+  },
+  bearing(v){
+    if(v<50)  return{score:-25,label:'Not suitable',status:'danger',action:'Soil improvement or piling mandatory.'};
+    if(v<100) return{score:-12,label:'Weak soil',   status:'warn',  action:'Raft or pile foundation required.'};
+    if(v<200) return{score:0,  label:'Acceptable',  status:'ok',    action:'Standard foundation design.'};
+    if(v<300) return{score:+3, label:'Good',        status:'ok',    action:'Broad foundation options available.'};
+    return{score:+5,label:'Excellent',status:'ok',action:'All foundation types suitable.'};
+  },
+  moisture(v){
+    if(v==='low')    return{score:0,  label:'Suitable',             status:'ok',    action:'No additional measure needed.'};
+    if(v==='medium') return{score:-5, label:'Minor settlement risk',status:'warn',  action:'Monitor and ensure drainage.'};
+    return{score:-15,label:'High instability risk',status:'danger',action:'Drainage + soil stabilisation essential.'};
+  },
+  floors(v){
+    if(v<=2)  return{score:0,  label:'Suitable',                  status:'ok',    action:'Light load — standard design.'};
+    if(v<=5)  return{score:-5, label:'Moderate load',             status:'warn',  action:'Structural engineer review needed.'};
+    if(v<=10) return{score:-12,label:'High load — deep foundation',status:'warn', action:'Pile foundation mandatory.'};
+    return{score:-20,label:'Specialist design required',status:'danger',action:'Full geotechnical + structural report needed.'};
+  },
+  foundation(v){
+    if(v==='pile')    return{score:+8, label:'Best for slopes/weak soil', status:'ok',    action:'Deepest — most stable option.'};
+    if(v==='raft')    return{score:+5, label:'Good load distribution',    status:'ok',    action:'Spreads load — good for weak soil.'};
+    if(v==='stepped') return{score:+5, label:'Suitable for hilly terrain',status:'ok',    action:'Adapts to slope.'};
+    return{score:-10,label:'Only flat, strong soil',status:'danger',action:'Inadequate for slopes or weak soil.'};
+  },
+  load(v){
+    if(v==='light')  return{score:+3, label:'Low soil stress', status:'ok',    action:'Residential/single floor — low risk.'};
+    if(v==='medium') return{score:0,  label:'Standard load',  status:'ok',    action:'Normal construction — standard design.'};
+    return{score:-10,label:'High stress',status:'danger',action:'Strong foundation + soil check mandatory.'};
+  },
+  material(v){
+    if(v==='concrete') return{score:+5,label:'Strong, durable, seismic-resistant',status:'ok',  action:'Best all-round choice.'};
+    if(v==='steel')    return{score:+5,label:'Flexible, good for seismic zones',   status:'ok',  action:'Ideal for high seismic zones.'};
+    return{score:-5,label:'Weak in moisture + seismic zones',status:'warn',action:'Avoid in seismic zone 3+ or wet sites.'};
+  },
+  wall(v){
+    if(v==='reinforced')  return{score:+5,label:'Best — lateral + seismic resist.',status:'ok',  action:'Mandatory in seismic zone 3+.'};
+    if(v==='brick')       return{score:0, label:'Moderate — brittle under seismic',status:'ok',  action:'Acceptable in low seismic zones.'};
+    return{score:-5,label:'Weak — not for heavy loads',status:'warn',action:'Avoid for multi-floor or heavy use.'};
+  },
+  retaining(v,slope){
+    if(v==='yes')             return{score:+5,  label:'Slope stabilised',        status:'ok',    action:'Reduces slope failure risk.'};
+    if(v==='no'&&slope<=15)   return{score:0,   label:'No issue (flat land)',    status:'ok',    action:'Flat land — wall not required.'};
+    return{score:-12,label:'Risk — no retaining wall',status:'danger',action:'Install retaining wall before construction.'};
+  },
+  drainage(v){
+    if(v==='yes') return{score:+3,  label:'Controls waterlogging',    status:'ok',    action:'Essential on slopes and clay soils.'};
+    return{score:-10,label:'Settlement + erosion risk',status:'danger',action:'Install sub-surface + perimeter drain.'};
+  },
+  seismic(v){
+    if(v<=2) return{score:0,  label:`Zone ${v} — Low risk`,   status:'ok',    action:'Standard design applies.'};
+    if(v===3) return{score:-6, label:'Zone 3 — Moderate risk', status:'warn',  action:'Shear walls / base isolation needed.'};
+    if(v===4) return{score:-12,label:'Zone 4 — High risk',     status:'danger',action:'IS 1893 ductile detailing mandatory.'};
+    return{score:-12,label:'Zone 5 — Very high risk',status:'danger',action:'Full earthquake-resistant design mandatory.'};
+  },
+  usage(v,land,seis){
+    if(v==='residential') return{score:0,label:'Standard occupancy',status:'ok',action:'Normal safety norms apply.'};
+    const hz = land==='high'||seis>=4;
+    return{score:hz?-5:0,label:'Higher occupancy — stricter norms',status:hz?'warn':'ok',
+           action:hz?'Extra safety checks required in hazard zones.':'Standard commercial norms apply.'};
+  },
+  compound(s){
+    const r=[];
+    const add=(rule,score,reason,type)=>r.push({rule,score,reason,type});
+    if(s.building_load==='heavy'&&s.soil_type==='sandy')          add('Heavy load + Sandy soil',-15,'Liquefaction under load — pile + stabilisation needed.','danger');
+    if(s.num_floors>5&&s.foundation_type==='shallow')             add('Floors > 5 + Shallow foundation',-20,'Foundation depth inadequate for building height.','danger');
+    if(s.moisture_content==='high'&&s.drainage==='no')            add('High moisture + No drainage',-10,'Compounding settlement + erosion risk.','danger');
+    if(s.seismic_zone>=3&&s.material==='wood')                    add('Seismic zone 3+ + Wood material',-10,'Wood fails under lateral seismic forces.','danger');
+    if(s.landslide_risk==='high'&&s.retaining_wall==='no')        add('High landslide + No retaining wall',-12,'Slope failure probability very high.','danger');
+    if(s.soil_type==='sandy'&&s.moisture_content==='high')        add('Sandy soil + High moisture',-8,'Combined liquefaction + settlement risk.','danger');
+    if(s.elevation==='high'&&s.building_load==='heavy')           add('High altitude + Heavy building load',-8,'Structural stress at altitude + wind load amplified.','warn');
+    if(s.seismic_zone>=4&&s.wall_type==='brick')                  add('Seismic zone 4/5 + Brick walls',-8,'Brittle masonry fails under high seismic forces.','danger');
+    if(s.slope_angle>30&&s.retaining_wall==='no')                 add('Slope > 30° + No retaining wall',-12,'Slope instability without lateral support.','danger');
+    if(s.num_floors>10&&s.seismic_zone>=4)                        add('Floors > 10 + Seismic zone 4/5',-15,'Tall buildings in high seismic zones need specialist review.','danger');
+    if(s.foundation_type==='pile'&&s.soil_type==='rock')          add('Pile foundation + Rock soil',+5,'Best combination — maximum stability bonus.','ok');
+    if(s.material==='concrete'&&s.wall_type==='reinforced')       add('Concrete material + Reinforced walls',+5,'Best structural material combination.','ok');
+    if(s.drainage==='yes'&&s.moisture_content==='high')           add('Drainage present + High moisture soil',+5,'Drainage mitigates moisture risk effectively.','ok');
+    if(s.seismic_zone<=2&&s.building_load==='light')              add('Low seismic zone + Light load',+3,'Safest combination for hillside construction.','ok');
+    return r;
+  },
+  verdict(sc){
+    if(sc>=75) return{verdict:'Feasible',color:'green',action:'Proceed with standard IS code design.',desc:'Site conditions are suitable for construction. Follow IS code design requirements.'};
+    if(sc>=50) return{verdict:'Feasible with conditions',color:'amber',action:'Address flagged parameters. Get structural engineer sign-off.',desc:'Construction is possible but certain risks must be mitigated first.'};
+    if(sc>=30) return{verdict:'High risk — expert review needed',color:'orange',action:'Mandatory geotechnical + structural expert review required.',desc:'Multiple high-risk parameters detected. Do not proceed without expert clearance.'};
+    return{verdict:'Not recommended',color:'red',action:'Do NOT construct. Site conditions unsafe.',desc:'Site conditions are fundamentally unsafe. Major site remediation required before construction.'};
+  },
+  assess(s){
+    const ind = {
+      slope_angle:      this.slope(s.slope_angle),
+      elevation:        this.elevation(s.elevation),
+      landslide_risk:   this.landslide(s.landslide_risk),
+      soil_type:        this.soilType(s.soil_type),
+      bearing_capacity: this.bearing(s.bearing_capacity),
+      moisture_content: this.moisture(s.moisture_content),
+      num_floors:       this.floors(s.num_floors),
+      foundation_type:  this.foundation(s.foundation_type),
+      building_load:    this.load(s.building_load),
+      material:         this.material(s.material),
+      wall_type:        this.wall(s.wall_type),
+      retaining_wall:   this.retaining(s.retaining_wall, s.slope_angle),
+      drainage:         this.drainage(s.drainage),
+      seismic_zone:     this.seismic(s.seismic_zone),
+      usage:            this.usage(s.usage, s.landslide_risk, s.seismic_zone),
+    };
+    const comp   = this.compound(s);
+    const indT   = Object.values(ind).reduce((a,b)=>a+b.score,0);
+    const compT  = comp.reduce((a,b)=>a+b.score,0);
+    const final  = Math.max(0,Math.min(100,100+indT+compT));
+    return{score:final,indTotal:indT,compTotal:compT,verdict:this.verdict(final),individual:ind,compound:comp};
+  }
+};
+
+// ── PARAM LABELS ────────────────────────────────────────────
+const PL = {
+  slope_angle:'Slope Angle',elevation:'Elevation',landslide_risk:'Landslide Risk',
+  soil_type:'Soil Type',bearing_capacity:'Bearing Capacity',moisture_content:'Soil Moisture',
+  num_floors:'No. of Floors',foundation_type:'Foundation Type',building_load:'Building Load',
+  material:'Material',wall_type:'Wall Type',retaining_wall:'Retaining Wall',
+  drainage:'Drainage',seismic_zone:'Seismic Zone',usage:'Building Usage'
+};
+
+// ── INPUT HANDLERS ───────────────────────────────────────────
+function onSlider(el, outId, suffix){
+  const v = el.value;
+  document.getElementById(outId).textContent = v + suffix;
+  const field = el.id;
+  S[field] = (field==='num_floors') ? parseInt(v) : parseFloat(v);
+  liveUpdate();
+}
+
+function onSeg(btn, field, value){
+  btn.closest('.seg').querySelectorAll('.sbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById(field).value = value;
+  S[field] = (field==='seismic_zone') ? parseInt(value) : value;
+  liveUpdate();
+}
+
+function onDrop(el){
+  const field = el.id;
+  S[field] = (field==='seismic_zone') ? parseInt(el.value) : el.value;
+  liveUpdate();
+}
+
+// ── LIVE UPDATE (pill feedback) ──────────────────────────────
+const pillMap = {
+  slope_angle:['pill-slope','ic-slope'],
+  elevation:['pill-elev','ic-elev'],
+  landslide_risk:['pill-land','ic-land'],
+  soil_type:['pill-soil','ic-soil'],
+  bearing_capacity:['pill-bear','ic-bear'],
+  moisture_content:['pill-moist','ic-moist'],
+  num_floors:['pill-floors','ic-floors'],
+  foundation_type:['pill-found','ic-found'],
+  building_load:['pill-load','ic-load'],
+  material:['pill-mat','ic-mat'],
+  wall_type:['pill-wall','ic-wall'],
+  retaining_wall:['pill-ret','ic-ret'],
+  drainage:['pill-drain','ic-drain'],
+  seismic_zone:['pill-seis','ic-seis'],
+  usage:['pill-usage','ic-usage'],
+};
+
+function liveUpdate(){
+  const r = E.assess(S);
+  Object.entries(r.individual).forEach(([key, val])=>{
+    const [pillId, cardId] = pillMap[key];
+    const pill = document.getElementById(pillId);
+    const card = document.getElementById(cardId);
+    if(!pill||!card) return;
+    pill.textContent = val.label;
+    pill.className = 'spill vis ' + val.status;
+    card.className = 'icard s-' + val.status;
+  });
+  // update step done state
+  [1,2,3,4,5,6].forEach(i=>document.getElementById('st'+i).classList.add('done'));
+  document.getElementById('st1').classList.add('active');
+}
+
+// ── ASSESSMENT ───────────────────────────────────────────────
+async function runAssessment(){
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  document.getElementById('loading').classList.add('vis');
+  document.getElementById('rp').classList.remove('vis');
+  document.getElementById('rp').style.display = 'none';
+
+  // Call Django API
+  let result;
+  try{
+    const res = await fetch('/api/dss/assess/', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(S)
+    });
+    result = await res.json();
+    if(result.errors){ toast('Validation error — check inputs'); btn.disabled=false; document.getElementById('loading').classList.remove('vis'); return; }
+  } catch(e){
+    // Fallback: run engine client-side if API is unavailable
+    const eng = E.assess(S);
+    result = {
+      score: eng.score,
+      score_breakdown:{base:100,individual_total:eng.indTotal,compound_total:eng.compTotal},
+      verdict: eng.verdict,
+      individual_results: eng.individual,
+      compound_rules_triggered: eng.compound,
+      flags: Object.fromEntries(Object.entries(eng.individual).filter(([,v])=>v.status!=='ok')),
+      compound_flags: eng.compound.filter(r=>r.type!=='ok'),
+      recommendations: [],
+      disclaimer:'This DSS provides preliminary screening only. All thresholds are based on IS Codes (BIS), NBC 2016, and NDMA/GSI guidelines. Final construction decisions must be validated by a licensed structural and geotechnical engineer.'
+    };
+  }
+
+  document.getElementById('loading').classList.remove('vis');
+  btn.disabled = false;
+  renderResult(result);
+}
+
+function renderResult(r){
+  const panel = document.getElementById('rp');
+  panel.style.display = 'block';
+  panel.classList.add('vis');
+
+  const sc = r.score;
+  const vd = r.verdict;
+
+  // Dial
+  document.getElementById('r-score').innerHTML = sc + '<span>/100</span>';
+  setTimeout(()=>{
+    const bar = document.getElementById('r-bar');
+    bar.style.width = sc + '%';
+    bar.className = 'sbar-i b-' + vd.color;
+  }, 80);
+  document.getElementById('r-verd').textContent = vd.verdict;
+  document.getElementById('r-verd').className   = 'sverd c-' + vd.color;
+  document.getElementById('r-act').textContent  = vd.action;
+
+  // Verdict card
+  document.getElementById('r-vtitle').textContent = vd.verdict;
+  document.getElementById('r-vtitle').className   = 'vtitle c-' + vd.color;
+  document.getElementById('r-vdesc').textContent  = vd.description || vd.desc || '';
+  const bd = r.score_breakdown;
+  const indEl  = document.getElementById('r-ind');
+  indEl.textContent = (bd.individual_total>=0?'+':'')+bd.individual_total;
+  indEl.className   = 'bdv '+(bd.individual_total>=0?'pos':'neg');
+  const compEl = document.getElementById('r-comp');
+  compEl.textContent = (bd.compound_total>=0?'+':'')+bd.compound_total;
+  compEl.className   = 'bdv '+(bd.compound_total>=0?'pos':'neg');
+  document.getElementById('r-final').textContent = sc;
+
+  // Individual results
+  const grid = document.getElementById('r-grid');
+  grid.innerHTML = Object.entries(r.individual_results).map(([key,val])=>{
+    const sc2  = val.score;
+    const cls  = sc2>0?'pos':sc2<0?'neg':'z';
+    const txt  = (sc2>0?'+':'')+sc2+' pts';
+    return `<div class="ritem ${val.status}">
+      <div class="rip">${PL[key]||key}</div>
+      <div class="ril">${val.label}</div>
+      <div class="ris ${cls}">${txt}</div>
+      <div class="ria">${val.action}</div>
+    </div>`;
+  }).join('');
+
+  // Compound rules
+  const comps = r.compound_rules_triggered || [];
+  const csec  = document.getElementById('r-csec');
+  if(comps.length){
+    csec.style.display='block';
+    const icons = {danger:'⚡',warn:'⚠️',ok:'✓'};
+    document.getElementById('r-clist').innerHTML = comps.map(c=>`
+      <div class="citem">
+        <div class="cico ${c.type}">${icons[c.type]||'•'}</div>
+        <div>
+          <div class="crule">${c.rule}</div>
+          <div class="creason">${c.reason}</div>
+        </div>
+        <div class="cscore ${c.score>=0?'pos':'neg'}">${c.score>=0?'+':''}${c.score}</div>
+      </div>`).join('');
+  } else {
+    csec.style.display='none';
+  }
+
+  // Recommendations
+  const flags = Object.entries(r.individual_results).filter(([,v])=>v.status!=='ok');
+  const rsec  = document.getElementById('r-rsec');
+  if(flags.length){
+    rsec.style.display='block';
+    document.getElementById('r-rlist').innerHTML = flags.map(([key,val],i)=>`
+      <div class="ritem2">
+        <div class="rnum">${i+1}</div>
+        <div>
+          <div class="rtxt"><strong>${PL[key]}:</strong> ${val.action}</div>
+          <div class="rsrc">${val.status.toUpperCase()} · ${val.source||''}</div>
+        </div>
+      </div>`).join('');
+  } else {
+    rsec.style.display='none';
+  }
+
+  document.getElementById('r-disc').textContent = r.disclaimer;
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+  toast('Assessment complete — Score: ' + sc + ' / 100');
+}
+
+function resetAll(){
+  S.slope_angle=0; S.elevation='low'; S.landslide_risk='low';
+  S.soil_type='clay'; S.bearing_capacity=150; S.moisture_content='low';
+  S.num_floors=2; S.foundation_type='pile'; S.building_load='light';
+  S.material='concrete'; S.wall_type='reinforced'; S.retaining_wall='yes';
+  S.drainage='yes'; S.seismic_zone=1; S.usage='residential';
+
+  document.getElementById('slope_angle').value = 0;
+  document.getElementById('sv-slope').textContent = '0°';
+  document.getElementById('bearing_capacity').value = 150;
+  document.getElementById('sv-bear').textContent = '150 kN/m²';
+  document.getElementById('num_floors').value = 2;
+  document.getElementById('sv-floors').textContent = '2';
+  document.getElementById('foundation_type').value = 'pile';
+  document.getElementById('seismic_zone').value = 1;
+
+  // reset seg buttons to first option
+  document.querySelectorAll('.seg').forEach(g=>{
+    g.querySelectorAll('.sbtn').forEach((b,i)=>b.classList.toggle('on',i===0));
+  });
+
+  // reset pills
+  Object.values(pillMap).forEach(([pillId, cardId])=>{
+    const p = document.getElementById(pillId);
+    const c = document.getElementById(cardId);
+    if(p) p.className='spill';
+    if(c) c.className='icard';
+  });
+
+  document.getElementById('rp').style.display='none';
+  document.getElementById('rp').classList.remove('vis');
+  toast('Reset to defaults');
+}
+
+function goTo(id){ document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'}); }
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// Init live pills on load
+liveUpdate();
+</script>
+</body>
+</html>
